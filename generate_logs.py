@@ -167,6 +167,9 @@ for user in users:
 
 logs_df = pd.DataFrame(logs)
 
+logs_df.to_csv('music_app_logs.csv', index=False, encoding='utf-8-sig')
+print("📂 'music_app_logs.csv' saved successfully!")
+
 print("-" * 30)
 print(f"✅ Simulation Complete!")
 print(f"총 생성된 로그 수: {len(logs_df):,} rows")
