@@ -92,12 +92,16 @@ for user in users:
     active_days = [d for d in full_date_range if d >= u_signup]
 
     for date_obj in active_days:
-        if np.random.random() > 0.4:
+        if np.random.random() > 0.4: 
             continue
-        hour = np.random.choice(
-            range(0, 24),
-            p = [0.01]*6 + [0.04]*5 + [0.06]*7 + [0.08]*6
-        )
+        raw_weights = [0.01]*6 + [0.04]*5 + [0.06]*7 + [0.08]*6
+        
+        # 2. numpy를 이용해 전체 합으로 나누어 줍니다. (합이 무조건 1.0이 됨)
+        probs = np.array(raw_weights)
+        probs /= probs.sum() 
+
+        # 3. p 인자에 계산된 probs를 넣습니다.
+        hour = np.random.choice(range(0, 24), p=probs)
 
         month = date_obj.month
         if u_country == 'FR':
