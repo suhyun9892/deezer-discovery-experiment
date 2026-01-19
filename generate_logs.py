@@ -45,13 +45,13 @@ def get_context_card(country, date_obj, weather, hour):
     
     # Priority 3: Daily Routine (시간대)
     if 5 <= hour < 12:
-        return "Morning_Boost", "Start your day", "Upbeat Pop", 'Meditation'
+        return "Morning_Boost", "Start your day", "Upbeat Pop"
     elif 12 <= hour < 18:
-        return "Afternoon_Focus", "Lo-fi for Focus", "Energetic Afro", "Energetic Pop"
+        return "Afternoon_Focus", "Lo-fi for Focus", "Energetic Pop"
     elif 18 <= hour < 22:
-        return "Evening_Chill", "Relax after work", "R&B/Soul", "Let's party"
+        return "Evening_Chill", "Relax after work", "R&B/Soul"
     else:
-        return "Night_Sleep", "Deep Sleep Sounds", "Ambient/Piano", 'Classical music for sleep'
+        return "Night_Sleep", "Deep Sleep Sounds", "Ambient/Piano"
 
 # 2. 유저 데이터 생성 (User Generation)
 users = []
@@ -95,7 +95,7 @@ for user in users:
         if np.random.random() > 0.4:
             continue
         hour = np.random.choice(
-            range(6, 24),
+            range(0, 24),
             p = [0.01]*6 + [0.04]*5 + [0.06]*7 + [0.08]*6
         )
 
@@ -115,12 +115,41 @@ for user in users:
 
         card_result = get_context_card(u_country, date_obj, weather, hour)
 
-        context_id = card_result[0]
-        card_title = card_result[1]
-        card_genre = card_result[2]
+        # [Step 1] 유저가 앱의 어느 영역을 클릭했는가? (UI 시뮬레이션)
+        # 50%는 그냥 습관적으로 상단 'Recently Played'를 클릭함 (그룹 무관 공통)
+        is_recent_click = np.random.random() < 0.5
 
-        # Simulation (Treatment group is 5% higher than Control group about CTR)
-        prob_play = 0.45 if u_group == 'Treatment' else 0.40
+        if is_recent_click:
+            # [공통 영역] Recently Played (Control, Treatment 모두 발생 가능)
+            context_id = "Recently_Played_UI"
+            card_title = "Recently Played Songs"
+            card_genre = "History"
+        else:
+            # [실험 영역] 하단 추천 섹션 (여기가 A/B 테스트 핵심!)
+            if u_group == 'Control':
+                # Control은 기존 알고리즘(Mixes) 노출
+                context_id = "Mixes_Inspired_By"
+                card_title = "Discover new tracks similar to your favourites"
+                card_genre = "User_Taste_Mix"
+            else:
+                # Treatment는 상황별(Context) 카드 노출
+                context_id = card_result[0]     # 예: Bastille_Day, Morning_Boost
+                card_title = card_result[1]
+                card_genre = card_result[2]
+        
+        # 5) 행동 시뮬레이션 (Action)
+        # 로직: Treatment 그룹이 '실험 영역(Context Card)'을 봤을 때만 클릭률이 높아야 함
+        
+        base_prob = 0.40 # 기본 클릭률
+
+        if u_group == 'Treatment' and not is_recent_click:
+            # Treatment 그룹이면서 + 실험 영역(Context Card)을 본 경우에만
+            # 클릭률 대폭 상승 (상황에 딱 맞는 추천이니까!)
+            prob_play = 0.50 
+        else:
+            # 그 외 (Control 그룹이거나, 그냥 Recently Played 누른 경우)
+            prob_play = base_prob
+
         action = np.random.choice(['Play', 'Skip'], p=[prob_play, 1-prob_play])
 
         logs.append({
