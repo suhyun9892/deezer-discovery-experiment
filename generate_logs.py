@@ -40,7 +40,7 @@ def get_context_card(country, date_obj, weather, hour):
         return "Sunny_Drive", "Driving Hits", "Pop/Rock"
     elif weather == 'Snowy':
         return "Snowy_Cabin", "Winter Warmth", "Acoustic"
-    else:
+    elif weather == 'Cloudy':
         return "Windy_classic", "Calm music", "Peaceful R&B"
     
     # Priority 3: Daily Routine (시간대)
