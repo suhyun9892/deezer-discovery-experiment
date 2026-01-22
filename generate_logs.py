@@ -141,22 +141,10 @@ for user in users:
                 card_title = card_result[1]
                 card_genre = card_result[2]
         
-        # 5) 행동 시뮬레이션 (Action)
-        # 로직: Treatment 그룹이 '실험 영역(Context Card)'을 봤을 때만 클릭률이 높아야 함
-        
-        base_prob = 0.40 # 기본 클릭률
+        # [수정됨] 5) 행동 시뮬레이션: Funnel (View -> Click -> Play -> Like)
 
-        if u_group == 'Treatment' and not is_recent_click:
-            # Treatment 그룹이면서 + 실험 영역(Context Card)을 본 경우에만
-            # 클릭률 대폭 상승 (상황에 딱 맞는 추천이니까!)
-            prob_play = 0.50 
-        else:
-            # 그 외 (Control 그룹이거나, 그냥 Recently Played 누른 경우)
-            prob_play = base_prob
-
-        action = np.random.choice(['Play', 'Skip'], p=[prob_play, 1-prob_play])
-
-        logs.append({
+        # 공통 데이터 묶음 (단계별로 action만 바꿔서 저장하기 위함)
+        base_log = {
             'user_id': uid,
             'date': date_obj.strftime('%Y-%m-%d'),
             'hour': hour,
@@ -164,10 +152,41 @@ for user in users:
             'context_id': context_id,
             'card_title': card_title,
             'card_genre': card_genre,
-            'action': action,
             'group': u_group,
-            'country': u_country
-        })
+            'country': u_country,
+            'platform': user['platform']
+        }
+
+        # Step 1: View (홈 화면 노출) - 무조건 발생
+        log_view = base_log.copy()
+        log_view['action'] = 'view_home'
+        logs.append(log_view)
+
+        # Step 2: Click (클릭 여부 확률 계산)
+        if u_group == 'Treatment' and not is_recent_click:
+            # Treatment 그룹이 '새로운 추천'을 봤을 때 클릭률 높게 설정 (0.65)
+            click_prob = 0.65  
+        else:
+            # Control 그룹이거나 '최근 재생'을 볼 때 (0.35)
+            click_prob = 0.35
+
+        # 클릭 발생 시뮬레이션
+        if np.random.random() < click_prob:
+            log_click = base_log.copy()
+            log_click['action'] = 'click_card'
+            logs.append(log_click)
+
+            # Step 3: Play (클릭한 사람 중 80%는 재생)
+            if np.random.random() < 0.8:
+                log_play = base_log.copy()
+                log_play['action'] = 'play'
+                logs.append(log_play)
+
+                # Step 4: Like (재생한 사람 중 20%는 좋아요 -> 매출/ROI 핵심 지표)
+                if np.random.random() < 0.2:
+                    log_like = base_log.copy()
+                    log_like['action'] = 'like'
+                    logs.append(log_like)
 
 logs_df = pd.DataFrame(logs)
 

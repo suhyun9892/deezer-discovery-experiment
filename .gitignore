@@ -1,0 +1,14 @@
+# dbt 관련 파일
+**/dbt_packages/
+**/dbt_modules/
+**/target/
+**/logs/
+**/*.log
+
+# 파이썬 및 설정 파일
+**/__pycache__/
+**/*.pyc
+**/.DS_Store
+**/.venv/
+**/env/
+**/dbt_internal_packages/
