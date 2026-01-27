@@ -9,11 +9,11 @@ np.random.seed(42)
 random.seed(42)
 
 fake = Faker()
-NUM_USERS = 1000
+NUM_USERS = 8000
 START_DATE = datetime(2025, 2, 1)
-END_DATE = datetime(2025, 7, 31)
+END_DATE = datetime(2025, 10, 31)
 PLATFORMS = ['iOS', 'Android']
-COUNTRIES = ['FR', 'BR']
+COUNTRIES = ['FR', 'BR', 'DE']
 GROUPS = ['Control', 'Treatment']
 
 # 1. Triger logic function
@@ -25,6 +25,10 @@ def get_context_card(country, date_obj, weather, hour):
     
     if country == 'BR' and ((date_obj.month == 2 and date_obj.day >= 28) or (date_obj.month == 3 and date_obj.day <= 5)):
         return "Rio_Carnival_Live", "Samba Energy", "Samba/Pagode"
+
+    if country == 'DE':
+        if (date_obj.month == 9 and date_obj.day >= 20) or (date_obj.month == 10 and date_obj.day <= 5):
+            return "Oktoberfest_Schlager", "Wiesn Vibes 🍺", "Schlager/German Folk"
     
     if country == 'FR' and date_obj.month == 7 and date_obj.day == 14:
         return "Bastille_Day_Vibes", "Parisian Night", "French Electro/Pop"
@@ -58,7 +62,7 @@ print('Generating users ...')
 
 for i in range(NUM_USERS):
     user_id = i+10000
-    country = np.random.choice(COUNTRIES, p=[0.5, 0.5]) # FR 50%, BR 50%
+    country = np.random.choice(COUNTRIES, p=[0.4, 0.3, 0.3])
     group = np.random.choice(GROUPS, p=[0.5, 0.5]) # A/B Test Group
 
     days_offset = np.random.randint(0,150)
