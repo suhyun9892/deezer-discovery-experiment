@@ -226,14 +226,6 @@ for user in users:
 
 logs_df = pd.DataFrame(logs)
 
-print("\nSanity check: views by group x placement (from raw logs)")
-print(
-    logs_df[logs_df['action']=='view_home']
-    .groupby(['group','placement'])
-    .size()
-    .reset_index(name='rows')
-)
-
 logs_df.to_csv('music_app_logs.csv', index=False, encoding='utf-8-sig')
 print("📂 'music_app_logs.csv' saved successfully!")
 
