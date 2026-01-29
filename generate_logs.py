@@ -23,11 +23,11 @@ def get_context_card(country, date_obj, weather, hour):
     if date_obj.month == 2 and date_obj.day == 14:
          return "Valentine_Day", "Romantic Vibes", "R&B/Ballad"
     
-    if country == 'BR' and ((date_obj.month == 2 and date_obj.day >= 28) or (date_obj.month == 3 and date_obj.day <= 5)):
+    if country == 'BR' and (date_obj.month == 3 and date_obj.day == 2):
         return "Rio_Carnival_Live", "Samba Energy", "Samba/Pagode"
 
     if country == 'DE':
-        if (date_obj.month == 9 and date_obj.day >= 20) or (date_obj.month == 10 and date_obj.day <= 5):
+        if country == 'DE' and (date_obj.month == 9 and date_obj.day == 27):
             return "Oktoberfest_Schlager", "Wiesn Vibes 🍺", "Schlager/German Folk"
     
     if country == 'FR' and date_obj.month == 7 and date_obj.day == 14:
@@ -85,6 +85,14 @@ WEATHER_OPTIONS = ['Sunny', 'Rainy', 'Cloudy', 'Snowy']
 
 full_date_range = pd.date_range(start=START_DATE, end=END_DATE)
 
+EVENT_CONTEXT_IDS = set([
+    "Valentine_Day",
+    "Rio_Carnival_Live",
+    "Oktoberfest_Schlager",
+    "Bastille_Day_Vibes",
+    "Music_Festival_Day"
+])
+
 for user in users:
     satisfaction = 0.0
     boredom_streak = 0
@@ -135,30 +143,27 @@ for user in users:
         weather = np.random.choice(WEATHER_OPTIONS, p=weather_probs)
 
         card_result = get_context_card(u_country, date_obj, weather, hour)
+        is_event_day = (card_result[0] in EVENT_CONTEXT_IDS)
+
+        if u_group == 'Control':
+            choose_recently_played = True
+        else:
+            # Treatment only: event day -> more recommendation
+            p_recently = 0.40 if is_event_day else 0.50
+            choose_recently_played = (np.random.random() < p_recently)
 
         # [Step 1] UI simulation - which part do users click
-        # 50% -> Click 'Recently Played'
-        choose_recently_played = np.random.random() < 0.5
-
         if choose_recently_played:
             # [common area] Recently Played
             context_id = "Recently_Played_UI"
             card_title = "Recently Played Songs"
             card_genre = "History"
         else:
-            # [test area] recommendation section (key code for A/B test)
-            if u_group == 'Control':
-                # Control
-                context_id = "Mixes_Inspired_By"
-                card_title = "Discover new tracks similar to your favourites"
-                card_genre = "User_Taste_Mix"
-            else:
-                # Treatment - context card
-                context_id = card_result[0]     # ex. Bastille_Day, Morning_Boost
-                card_title = card_result[1]
-                card_genre = card_result[2]
+            # [Treatment only] recommendation section is context-aware
+            context_id = card_result[0]     # ex. Bastille_Day_Vibes, Morning_Boost
+            card_title = card_result[1]
+            card_genre = card_result[2]
         
-        # 5) Funnel (View -> Click -> Play -> Like)
 
         # common data
         base_log = {
@@ -183,8 +188,10 @@ for user in users:
         logs.append(log_view)
 
         # Step 2: Click 
-        if u_group == 'Treatment' and not choose_recently_played:
-            click_prob = 0.65  
+        if u_group == 'Treatment' and (not choose_recently_played):
+            click_prob = 0.65
+            if is_event_day:
+                click_prob = min(0.75, click_prob + 0.05)
         else:
             click_prob = 0.35
 
@@ -218,6 +225,14 @@ for user in users:
 
 
 logs_df = pd.DataFrame(logs)
+
+print("\nSanity check: views by group x placement (from raw logs)")
+print(
+    logs_df[logs_df['action']=='view_home']
+    .groupby(['group','placement'])
+    .size()
+    .reset_index(name='rows')
+)
 
 logs_df.to_csv('music_app_logs.csv', index=False, encoding='utf-8-sig')
 print("📂 'music_app_logs.csv' saved successfully!")
