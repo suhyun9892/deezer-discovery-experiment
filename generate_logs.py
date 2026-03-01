@@ -232,9 +232,12 @@ _hour_weights /= _hour_weights.sum()   # Normalize to sum to 1.0
 # creating a realistic traffic shift from the legacy module to the new module.
 #
 # Target:
-#   Cannibalization = (CTR_CONTROL_RP - CTR_TREATMENT_RP) / CTR_CONTROL_RP
-#                   = (0.20 - 0.14) / 0.20 = 30%  -> within the target 10-30% band
-#   Net Click Growth = Treatment overall CTR / Control overall CTR - 1 -> should stay positive
+# Cannibalization = (plays_RP_control - plays_RP_treatment) / plays_RP_control
+#                 -> measures drop in RP section consumption, not just clicks
+#                 -> target: 10-30% range
+# Net Click Growth = (total_plays_treatment - total_plays_control) / total_plays_control
+#                 -> measures whether total consumption increased despite cannibalization
+#                 -> should stay positive
 #
 # Control: only Recently Played is shown, so only one CTR baseline is needed.
 CTR_CONTROL_RP    = 0.20   # Control Recently Played CTR
@@ -639,31 +642,24 @@ churns = logs_df[logs_df.action == 'churn']
 print(f'\n  Churn events : {len(churns):,}')
 
 # Cannibalization & Net Click Growth
-# Cannibalization = drop in Recently Played CTR
-#   = (CTR_RP_Control - CTR_RP_Treatment) / CTR_RP_Control
-#   Use RP-exposed sessions as the denominator (per-exposure basis), not all sessions.
+# Cannibalization = drop in RP section plays (Spotify standard: plays over clicks)
+#   = (plays_RP_control - plays_RP_treatment) / plays_RP_control
 #
-# Net Click Growth = Treatment overall CTR / Control overall CTR - 1
-ctrl_rp_v   = sessions[(sessions.user_group == 'control') & (sessions.section == 'recently_played')]
-ctrl_rp_c   = logs_df[logs_df.action == 'recently_played_click']
-ctrl_rp_c   = ctrl_rp_c[ctrl_rp_c.user_group == 'control']
-trt_rp_v    = sessions[(sessions.user_group == 'treatment') & (sessions.section == 'recently_played')]
-trt_rp_c    = logs_df[logs_df.action == 'recently_played_click']
-trt_rp_c    = trt_rp_c[trt_rp_c.user_group == 'treatment']
+# Net Click Growth = increase in total plays across all sections
+#   = (total_plays_treatment - total_plays_control) / total_plays_control
+plays_df = logs_df[logs_df.action == 'play']
 
-if len(ctrl_rp_v) > 0 and len(trt_rp_v) > 0:
-    ctr_ctrl_rp = len(ctrl_rp_c) / len(ctrl_rp_v)
-    ctr_trt_rp  = len(trt_rp_c)  / len(trt_rp_v)
-    cannib      = (ctr_ctrl_rp - ctr_trt_rp) / ctr_ctrl_rp if ctr_ctrl_rp > 0 else 0
+ctrl_rp_plays  = plays_df[(plays_df.user_group == 'control')   & (plays_df.section == 'recently_played')]
+trt_rp_plays   = plays_df[(plays_df.user_group == 'treatment') & (plays_df.section == 'recently_played')]
+ctrl_all_plays = plays_df[plays_df.user_group == 'control']
+trt_all_plays  = plays_df[plays_df.user_group == 'treatment']
 
-    ctrl_all_v  = sessions[sessions.user_group == 'control']
-    trt_all_v   = sessions[sessions.user_group == 'treatment']
-    ctr_ctrl    = len(clicks[clicks.user_group == 'control'])   / len(ctrl_all_v)
-    ctr_trt     = len(clicks[clicks.user_group == 'treatment']) / len(trt_all_v)
-    net_growth  = (ctr_trt - ctr_ctrl) / ctr_ctrl if ctr_ctrl > 0 else 0
+if len(ctrl_rp_plays) > 0:
+    cannib     = (len(ctrl_rp_plays) - len(trt_rp_plays)) / len(ctrl_rp_plays)
+    net_growth = (len(trt_all_plays) - len(ctrl_all_plays)) / len(ctrl_all_plays)
 
-    print(f'\n  Cannibalization (RP CTR drop):  {cannib:.1%}  (target: 10-30%)')
-    print(f'  Net Click Growth (total CTR):   {net_growth:+.1%}  (should be positive)')
+    print(f'\n  Cannibalization (RP plays drop): {cannib:.1%}  (target: 10-30%)')
+    print(f'  Net Click Growth (total plays):  {net_growth:+.1%}  (should be positive)')
 
 print('─────────────────────────────────────────────────────────\n')
 
