@@ -333,9 +333,8 @@ for i in range(NUM_USERS):
     # Country sampled by configured weights
     country = np.random.choice(COUNTRIES, p=COUNTRY_WEIGHTS)
 
-    # Exact 50:50 assignment by index
-    # This avoids sample-ratio mismatch caused by pure random assignment.
-    user_group = 'control' if i < NUM_USERS // 2 else 'treatment'
+    # Random 50:50 assignment to reflect realistic experiment conditions.
+    user_group = np.random.choice(['control', 'treatment'], p=[0.5, 0.5])
 
     device = np.random.choice(DEVICES, p=DEVICE_WEIGHTS)
 
@@ -635,7 +634,7 @@ if len(conv_df) > 0:
     print(f'\n  Trial Conversion Rate:')
     for grp in ['control', 'treatment']:
         n_conv  = conv_df[conv_df.user_group == grp].user_id.nunique()
-        n_total = NUM_USERS // 2
+        n_total = (logs_df[logs_df.user_group == grp].user_id.nunique())
         print(f'    {grp:<12} {n_conv:,} / {n_total:,}  ({n_conv/n_total:.1%})')
 
 churns = logs_df[logs_df.action == 'churn']
