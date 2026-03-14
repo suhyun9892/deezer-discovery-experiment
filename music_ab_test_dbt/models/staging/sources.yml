@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: raw_data
+    database: music-db-project-485112
+    schema: raw_data
+    tables:
+      - name: music_app_user_logs

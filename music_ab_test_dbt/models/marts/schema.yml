@@ -1,0 +1,181 @@
+version: 2
+
+models:
+
+  # ── STAGING ───────────────────────────────────────────────────────────────
+  - name: stg_user_logs
+    description: >
+      Type-cast and column-renamed view of raw_data.music_app_user_logs.
+      No calculations. One row per raw event.
+    config:
+      materialized: view
+    columns:
+      - name: user_id
+        description: Unique user identifier (e.g. u10001)
+        tests:
+          - not_null
+      - name: user_group
+        description: A/B group assignment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['control', 'treatment']
+      - name: country
+        description: User's country
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['FR', 'DE', 'BR']
+      - name: device
+        description: Device type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['mobile', 'desktop', 'tablet']
+      - name: action
+        description: Event type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['session_start', 'play', 'recommendation_click',
+                       'recently_played_click', 'like', 'conversion', 'churn']
+      - name: days_since_signup
+        description: Days elapsed since user registration (0-indexed)
+        tests:
+          - not_null
+
+  # ── MART ──────────────────────────────────────────────────────────────────
+  - name: fact_user_daily
+    description: >
+      Daily behaviour metrics per user.
+      Grain: user_id × days_since_signup (one row per user per day).
+      Used for Cohort Retention (D+1~30) and Novelty Effect views in Tableau.
+    config:
+      materialized: table
+    columns:
+      - name: user_id
+        description: Unique user identifier
+        tests:
+          - not_null
+      - name: user_group
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['control', 'treatment']
+      - name: country
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['FR', 'DE', 'BR']
+      - name: device
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['mobile', 'desktop', 'tablet']
+      - name: days_since_signup
+        description: Day index since registration (grain key)
+        tests:
+          - not_null
+      - name: had_session
+        description: 1 if user had a session_start on this day, else 0
+        tests:
+          - not_null
+      - name: had_rec_click
+        description: 1 if user clicked a recommendation on this day, else 0
+      - name: had_rp_click
+        description: 1 if user clicked recently_played on this day, else 0
+      - name: play_count
+        description: Number of play events on this day
+      - name: avg_play_duration_sec
+        description: Average play duration in seconds on this day (NULL if no plays)
+      - name: had_skip
+        description: 1 if any play was skipped on this day, else 0
+      - name: had_conversion
+        description: 1 if user converted on this day, else 0
+      - name: had_churn
+        description: 1 if user churned on this day, else 0
+
+  - name: fact_user_summary
+    description: >
+      Lifetime summary metrics per user.
+      Grain: user_id (one row per user, ever).
+      Used for Overview KPI, Discovery Journey, and LTV Simulator views in Tableau.
+    config:
+      materialized: table
+    columns:
+      - name: user_id
+        description: Unique user identifier (primary key)
+        tests:
+          - not_null
+          - unique
+      - name: user_group
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['control', 'treatment']
+      - name: country
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['FR', 'DE', 'BR']
+      - name: device
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['mobile', 'desktop', 'tablet']
+      - name: converted
+        description: 1 if user converted to premium, else 0
+        tests:
+          - not_null
+      - name: conversion_day
+        description: days_since_signup at first conversion (NULL if not converted)
+      - name: ltv
+        description: >
+          Individual LTV = ARPU × Gross Margin / Monthly Churn.
+          FR/DE: 10.99 × 0.25 / 0.05 = 54.95.
+          BR: 5.99 × 0.25 / 0.05 = 29.95.
+          0 if not converted.
+        tests:
+          - not_null
+      - name: blended_ltv
+        description: >
+          Average LTV within user_group × country partition.
+          Reflects group-level expected LTV accounting for conversion rate differences.
+      - name: retained_d7
+        description: 1 if user had a session on day 7, else 0
+        tests:
+          - not_null
+      - name: retained_d30
+        description: 1 if user had a session on day 30, else 0
+        tests:
+          - not_null
+      - name: total_sessions
+        description: Total session_start events across entire observation window
+      - name: overall_ctr
+        description: total_rec_clicks / total_sessions (NULL if no sessions)
+      - name: total_rp_clicks
+        description: Total recently_played_click events
+      - name: avg_play_duration_sec
+        description: Average play duration in seconds across all play events
+      - name: skip_rate
+        description: Proportion of play events where skip_flag = TRUE
+      - name: avg_play_duration_rp
+        description: >
+          Average play duration in seconds for tracks played via recently_played section.
+          Used as the stream share baseline for cannibalization measurement.
+          NULL if user never played from this section.
+      - name: avg_play_duration_rec
+        description: >
+          Average play duration in seconds for tracks played via recommendation section.
+          Compared against avg_play_duration_rp to measure stream share shift.
+          NULL if user never played from this section.

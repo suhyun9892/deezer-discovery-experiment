@@ -1,1 +1,6 @@
-music_app_logs.csv
+
+dbt_internal_packages/
+# dbt artifacts
+target/
+dbt_packages/
+logs/
